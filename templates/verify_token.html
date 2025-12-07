@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify Token</title>
+    <style>body { font-family: sans-serif; text-align: center; margin-top: 50px; }</style>
+</head>
+<body>
+    <h2>Enter Reset Token</h2>
+    <p>Please enter the token sent to your email (or printed in the server console).</p>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <p style="color:red;">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+        <input type="text" name="token" placeholder="Paste Token Here" required style="padding: 10px; width: 300px;">
+        <br><br>
+        <button type="submit" style="padding: 10px 20px;">Verify</button>
+    </form>
+</body>
+</html>

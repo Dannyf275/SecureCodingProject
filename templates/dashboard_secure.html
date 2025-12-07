@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Communication LTD - Secure Dashboard</title>
+</head>
+<body>
+    <h1>Secure Dashboard - Welcome {{ session['username'] }}</h1>
+    
+    <a href="{{ url_for('change_password') }}">Change Password</a> | 
+    <a href="{{ url_for('login') }}">Logout</a>
+    <hr>
+
+    <h3>Add New Client</h3>
+    <form method="POST">
+        Client Name: <input type="text" name="client_name" required><br>
+        Description: <textarea name="description" required></textarea><br>
+        <button type="submit">Add Client</button>
+    </form>
+    <hr>
+
+    <h3>Client List</h3>
+    <table border="1">
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        {% for client in clients %}
+        <tr>
+            <td>{{ client.client_name }}</td>
+            <td>{{ client.description }}</td> 
+            
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
