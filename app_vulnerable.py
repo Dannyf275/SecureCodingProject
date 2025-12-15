@@ -68,27 +68,36 @@ def login():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # !!! VULNERABILITY (SQL Injection) !!!
-        # Requirement: "Show SQLi on Section 3 (Login)"
-        # A classic login bypass vulnerability.
-        # If user types: admin' -- 
-        # The query becomes: SELECT * FROM users WHERE username = 'admin' --' AND ...
-        # The rest of the query (password check) is commented out.
+        # !!! VULNERABILITY: SQL Injection !!!
+        # We use string concatenation
         query = f"SELECT * FROM users WHERE username = '{username}'"
         
-        # Executing the insecure query
-        cursor.execute(query)
-        user = cursor.fetchone()
+        try:
+            cursor.execute(query)
+            user = cursor.fetchone()
+        except Exception as e:
+             flash(f"SQL Error: {e}", "error")
+             return render_template('login.html')
+             
         conn.close()
 
         if user:
-            # Note: In a full SQLi bypass, we might skip this password check entirely
-            # depending on how the injection is formed. 
-            # However, for normal users, we verify the hash.
+            # --- THE HACKABLE LOGIC ---
+            # If the user successfully injected SQL to comment out the rest of the query,
+            # (detected by the presence of '--'), we effectively bypassed the intent.
+            # IN REAL LIFE: You would do a UNION attack to inject a fake password hash.
+            # FOR THIS PROJECT: We will simulate the bypass if the user uses '--'.
+            
+            if '--' in username: 
+                 # Simulate a bypass!
+                 session['user_id'] = user['id']
+                 session['username'] = user['username']
+                 flash(f'HACK SUCCESSFUL! Logged in as {user["username"]} via SQL Injection.', 'success')
+                 return redirect(url_for('dashboard'))
+
+            # Normal Check for regular users
             stored_hash = user['password_hash']
             stored_salt = user['salt']
-            
-            # Recalculate hash with the input password + stored salt
             check_hash, _ = security_utils.hash_password(password, stored_salt)
             
             if check_hash == stored_hash:
@@ -98,7 +107,7 @@ def login():
             else:
                 flash('Invalid password', 'error')
         else:
-            flash('User not found', 'error')
+            flash('User not found (Did you register this user?)', 'error')
 
     return render_template('login.html')
 
@@ -213,6 +222,46 @@ def reset_password_verify():
             flash("Invalid Token", "error")
             
     return render_template('verify_token.html')
+
+# --- 6. Delete Client (Vulnerable) ---
+@app.route('/delete_client/<int:client_id>', methods=['POST'])
+def delete_client(client_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # !!! VULNERABILITY (SQL Injection potential) !!!
+    # We are trusting the ID from the URL directly in the string
+    query = f"DELETE FROM clients WHERE id = {client_id}"
+    
+    cursor.executescript(query) # Using executescript is dangerous!
+    conn.commit()
+    conn.close()
+    
+    flash('Client deleted successfully', 'success')
+    return redirect(url_for('dashboard'))
+
+# --- 7. Reset Database (For Testing) ---
+@app.route('/reset_db')
+def reset_db():
+    # This deletes all data but keeps the tables
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users")
+    cursor.execute("DELETE FROM password_history")
+    cursor.execute("DELETE FROM clients")
+    
+    # Reset the Auto-Increment counters so IDs start at 1 again
+    cursor.execute("DELETE FROM sqlite_sequence") 
+    
+    conn.commit()
+    conn.close()
+    
+    session.clear() # Log everyone out
+    flash('Database completely reset! Register a new user.', 'info')
+    return redirect(url_for('register'))
 
 if __name__ == '__main__':
     app.run(debug=True)

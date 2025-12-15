@@ -20,18 +20,26 @@
 
     <hr>
 
-    <h3>Client List</h3>
-    <table border="1">
+<h3>Client List</h3>
+    <a href="{{ url_for('reset_db') }}" style="color: red; font-size: small;" onclick="return confirm('Are you sure you want to delete ALL data?')">[Reset Database]</a>
+    <br><br>
+
+    <table border="1" style="width: 100%; border-collapse: collapse;">
         <tr>
             <th>Name</th>
             <th>Description</th>
-        </tr>
+            <th>Action</th> </tr>
         {% for client in clients %}
         <tr>
             <td>{{ client.client_name }}</td>
             
             <td>{{ client.description | safe }}</td>
             
+            <td style="text-align: center;">
+                <form action="{{ url_for('delete_client', client_id=client['id']) }}" method="POST" style="display:inline;">
+                    <button type="submit" style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer;">Delete</button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
     </table>

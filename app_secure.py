@@ -192,5 +192,40 @@ def reset_password_verify():
             flash("Invalid Token", "error")
     return render_template('verify_token.html')
 
+# --- 6. Delete Client (Secure) ---
+@app.route('/delete_client/<int:client_id>', methods=['POST'])
+def delete_client(client_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # !!! SECURITY FIX: Parameterized Query !!!
+    query = "DELETE FROM clients WHERE id = ?"
+    cursor.execute(query, (client_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Client deleted secureley', 'success')
+    return redirect(url_for('dashboard'))
+
+# --- 7. Reset Database ---
+@app.route('/reset_db')
+def reset_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users")
+    cursor.execute("DELETE FROM password_history")
+    cursor.execute("DELETE FROM clients")
+    cursor.execute("DELETE FROM sqlite_sequence")
+    conn.commit()
+    conn.close()
+    
+    session.clear()
+    flash('Database reset.', 'info')
+    return redirect(url_for('register'))
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001) # Running on port 5001 to not conflict with vulnerable app
