@@ -1,52 +1,66 @@
-import sqlite3 # Import the SQLite library to manage the database file
+import mysql.connector
 
-# Connect to the database file named 'com_ltd.db'. 
-# If the file does not exist, this command will create it automatically.
-conn = sqlite3.connect('com_ltd.db') 
+# הגדרות חיבור (ב-XAMPP ברירת המחדל היא root ללא סיסמה)
+DB_CONFIG = {
+    'user': 'root',
+    'password': '',
+    'host': '127.0.0.1'
+}
 
-# Create a 'cursor' object. This is like a pointer that allows us to execute SQL commands.
-cursor = conn.cursor() 
+DB_NAME = 'com_ltd'
 
-# --- Table 1: Users (For Login/Register) ---
-# We execute a SQL command to create the 'users' table if it doesn't already exist.
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,  -- Auto-increasing unique ID for every user
-    username TEXT UNIQUE NOT NULL,         -- The username (must be unique, cannot be empty)
-    email TEXT NOT NULL,                   -- The user's email address
-    password_hash TEXT NOT NULL,           -- The hashed password (result of HMAC)
-    salt TEXT NOT NULL,                    -- The random salt used for this specific user
-    login_attempts INTEGER DEFAULT 0       -- Counter to track failed logins (for locking accounts)
-)
-''')
+def initialize_database():
+    # 1. התחברות לשרת ללא בחירת מסד נתונים (כדי ליצור אותו)
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    
+    # יצירת המסד אם לא קיים
+    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}")
+    conn.close()
 
-# --- Table 2: Password History (For Security Policy) ---
-# Creates a table to remember past passwords so users can't reuse them.
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS password_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,         -- Unique ID for the history record
-    user_id INTEGER,                              -- A link (Foreign Key) to the 'users' table
-    password_hash TEXT NOT NULL,                  -- The hash of the old password
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, -- Automatically records when this password was created
-    FOREIGN KEY(user_id) REFERENCES users(id)     -- Enforces that 'user_id' must exist in the 'users' table
-)
-''')
+    # 2. התחברות למסד הספציפי שיצרנו
+    DB_CONFIG['database'] = DB_NAME
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
 
-# --- Table 3: Clients (For Business Logic & XSS Demo) ---
-# Creates a table to store the "Communication_LTD" client data.
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS clients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,  -- Unique ID for each client
-    client_name TEXT NOT NULL,             -- The name of the client company
-    description TEXT                       -- The description (This is the target for Stored XSS attacks!)
-)
-''')
+    # --- יצירת טבלאות (שינויי תחביר ל-MySQL) ---
 
-# Commit (save) the changes to the database file. Nothing is saved until you run this.
-conn.commit()
+    # Users
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        salt VARCHAR(255) NOT NULL,
+        login_attempts INT DEFAULT 0
+    )
+    ''')
 
-# Close the connection to the database to free up system resources.
-conn.close()
+    # Password History
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS password_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        password_hash VARCHAR(255) NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+    ''')
 
-# Print a success message to the console so we know it worked.
-print("Database 'com_ltd.db' created successfully with 3 tables.")
+    # Clients
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS clients (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_name VARCHAR(255) NOT NULL,
+        description TEXT,
+        website_url TEXT
+    )
+    ''')
+
+    conn.commit()
+    conn.close()
+    print(f"MySQL Database '{DB_NAME}' initialized successfully.")
+
+if __name__ == '__main__':
+    initialize_database()
