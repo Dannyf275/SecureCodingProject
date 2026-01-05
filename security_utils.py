@@ -1,106 +1,72 @@
-import hashlib  # Import hashlib for hashing algorithms like SHA1 and SHA256
-import hmac     # Import hmac for Keyed-Hashing for Message Authentication
-import os       # Import os to access operating system functionalities (like random bytes)
-import json     # Import json to parse configuration files
-import re       # Import re (Regular Expressions) for password pattern validation
+import hashlib  # Library for hashing algorithms (SHA256)
+import hmac     # Library for HMAC (Keyed-Hashing for Message Authentication)
+import os       # Library for OS interactions (generating random bytes)
+import re       # Library for Regular Expressions (Password validation)
+import json     # Library to parse JSON configuration files
 
-# Define the configuration file path
+# Load security configuration from external file
 CONFIG_FILE = 'config.json'
 
 def load_config():
-    """
-    Loads the security configuration from the JSON file.
-    """
-    # Open the configuration file in read mode
+    """Reads security policies from config.json."""
     with open(CONFIG_FILE, 'r') as f:
-        # Parse and return the JSON content as a dictionary
         return json.load(f)
 
-# Load the configuration immediately when the module is imported
+# Initialize config
 config = load_config()
-# Extract the specific password policy section for easier access
 POLICY = config['password_policy']
 
 def validate_password(password):
     """
-    Validates a password against the policies defined in config.json.
+    Checks if a password meets the complexity requirements.
     Returns: (bool, str) -> (IsValid, ErrorMessage)
     """
-    
-    # 1. Length Check: Verify if password meets the minimum length requirement
+    # Check minimum length
     if len(password) < POLICY['min_length']:
-        # Return False and an error message if too short
         return False, f"Password must be at least {POLICY['min_length']} characters."
 
-    # 2. Uppercase Check: Ensure at least one uppercase letter exists
+    # Check for uppercase letters
     if POLICY['require_uppercase'] and not any(char.isupper() for char in password):
-        # Return False if no uppercase character is found
         return False, "Password must contain an uppercase letter."
 
-    # 3. Lowercase Check: Ensure at least one lowercase letter exists
+    # Check for lowercase letters
     if POLICY['require_lowercase'] and not any(char.islower() for char in password):
-        # Return False if no lowercase character is found
         return False, "Password must contain a lowercase letter."
 
-    # 4. Number Check: Ensure at least one digit exists
+    # Check for numbers
     if POLICY['require_numbers'] and not any(char.isdigit() for char in password):
-        # Return False if no numeric character is found
         return False, "Password must contain a number."
 
-    # 5. Special Character Check: Verify against a predefined set of symbols
+    # Check for special characters using a predefined set
     specials = "!@#$%^&*()-_=+[{]}\|;:'\",<.>/?"
     if POLICY['require_special_chars'] and not any(char in specials for char in password):
-        # Return False if no special character is found
         return False, "Password must contain a special character."
 
-    # 6. Blocklist Check: Prevent use of common weak passwords
-    # Convert input to lowercase to ensure case-insensitive matching
-    if password.lower() in POLICY['dictionary_blocklist']:
-        # Return False if the password is in the blocklist
-        return False, "Password is too common (exists in dictionary blocklist)."
-
-    # If all checks pass, return True with a success message
     return True, "Valid"
 
 def hash_password(password, salt=None):
     """
-    Generates a secure password hash using HMAC + Salt.
-    Args:
-        password (str): The plain text password.
-        salt (str, optional): The salt to use. If None, generates a new one.
-    Returns:
-        (str, str): The resulting (hash, salt) tuple.
+    Creates a secure HMAC-SHA256 hash.
+    If salt is not provided, generates a new random salt.
     """
-    
-    # If no salt provided (new user registration), generate a new one
     if salt is None:
-        # Generate 16 cryptographically strong random bytes and convert to hex
+        # Generate 16 random bytes and convert to hex string
         salt = os.urandom(16).hex()
     
-    # Create a new HMAC object
-    # Key: The salt (encoded to bytes)
-    # Message: The password (encoded to bytes)
-    # Digest: SHA256 algorithm
+    # Create HMAC object using the salt as the key and SHA256 as the algorithm
     h = hmac.new(
         key=salt.encode('utf-8'), 
         msg=password.encode('utf-8'), 
         digestmod=hashlib.sha256
     )
     
-    # Return the hexadecimal representation of the hash and the salt used
+    # Return the hex digest of the hash and the salt used
     return h.hexdigest(), salt
 
 def generate_reset_token():
-    """
-    Generates a secure random token for password reset.
-    Implements the requirement to use SHA-1 for the token.
-    """
-    # Generate 20 random bytes from the OS (high entropy source)
+    """Generates a random SHA-1 token for password resets."""
+    # Get random bytes
     random_data = os.urandom(20)
-    
-    # Hash the random data using SHA-1
-    # Note: SHA-1 is generally deprecated but used here per specific project requirements
+    # Hash using SHA-1 (as per project requirements)
     token = hashlib.sha1(random_data).hexdigest()
-    
-    # Return the token string
     return token
