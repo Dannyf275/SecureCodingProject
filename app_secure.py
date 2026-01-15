@@ -121,51 +121,51 @@ def login():
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # !!! SECURITY DEFENSE: Parameterized Query !!!
-        # Even if the attacker enters: ' UNION SELECT ...
-        # The database will look for a user whose literal username is "' UNION SELECT ...".
-        # It will NOT execute the UNION command.
-        query = "SELECT * FROM users WHERE username = %s"
-        
         try:
+            # !!! SECURITY DEFENSE: Parameterized Query !!!
+            # Even if the attacker enters: ' UNION SELECT ...
+            # The database will look for a user whose literal username is "' UNION SELECT ...".
+            # It will NOT execute the UNION command.
+            query = "SELECT * FROM users WHERE username = %s"
+            
             cursor.execute(query, (username,))  # Pass username as a single-element tuple
             user = cursor.fetchone()  # Fetch the result
+        
+            if user:
+                # Check if user is locked out
+                if user['login_attempts'] >= 3:
+                     flash('Account locked due to too many failed attempts. Contact support.', 'error')
+                     return render_template('login.html')
+
+                # Retrieve the Salt stored in the database for this user
+                # Note: Since SQLi is blocked, this is guaranteed to be the REAL salt.
+                # Calculate the hash of the input password using the retrieved salt
+                check_hash, _ = security_utils.hash_password(password, user['salt'])
+                
+                # Compare the calculated hash with the stored hash
+                # This relies on standard string comparison (secure enough for this context)
+                if check_hash == user['password_hash']:
+                    # Reset failed attempts counter on successful login
+                    cursor.execute("UPDATE users SET login_attempts = 0 WHERE id = %s", (user['id'],))
+                    conn.commit()
+                    
+                    # Login Success: Set session variables
+                    session['user_id'] = user['id']
+                    session['username'] = user['username']
+                    return redirect(url_for('dashboard'))
+                else:
+                    # Increment failed attempts counter
+                    cursor.execute("UPDATE users SET login_attempts = login_attempts + 1 WHERE id = %s", (user['id'],))
+                    conn.commit()
+                    flash('Invalid credentials', 'error')  # Generic error message (Good practice)
+            else:
+                flash('Invalid credentials', 'error')  # User not found
+
         except Exception as e:
              flash(f"SQL Error: {e}", "error")
              return render_template('login.html')
         finally:
             conn.close()
-
-        if user:
-            # Check if user is locked out
-            if user['login_attempts'] >= 3:
-                 flash('Account locked due to too many failed attempts. Contact support.', 'error')
-                 conn.close()
-                 return render_template('login.html')
-
-            # Retrieve the Salt stored in the database for this user
-            # Note: Since SQLi is blocked, this is guaranteed to be the REAL salt.
-            # Calculate the hash of the input password using the retrieved salt
-            check_hash, _ = security_utils.hash_password(password, user['salt'])
-            
-            # Compare the calculated hash with the stored hash
-            # This relies on standard string comparison (secure enough for this context)
-            if check_hash == user['password_hash']:
-                # Reset failed attempts counter on successful login
-                cursor.execute("UPDATE users SET login_attempts = 0 WHERE id = %s", (user['id'],))
-                conn.commit()
-                
-                # Login Success: Set session variables
-                session['user_id'] = user['id']
-                session['username'] = user['username']
-                return redirect(url_for('dashboard'))
-            else:
-                # Increment failed attempts counter
-                cursor.execute("UPDATE users SET login_attempts = login_attempts + 1 WHERE id = %s", (user['id'],))
-                conn.commit()
-                flash('Invalid credentials', 'error')  # Generic error message (Good practice)
-        else:
-            flash('Invalid credentials', 'error')  # User not found
 
     return render_template('login.html')
 
