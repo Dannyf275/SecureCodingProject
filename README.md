@@ -1,6 +1,13 @@
 
 # Final Project: Communication_LTD Web System
 **Course:** Cyber Security / Computer Safety
+**Students:** 
+Daniel Firley, 312124498
+Yuval Geta, 211562889
+Maor Sheiman, 322659780
+Ilay Weizman, 318760725
+Yakira Siboni, 208499426
+Daniel Chani, 322757840
 
 ## Project Overview
 This project demonstrates a web-based information system for a telecommunications company ("Communication_LTD"). It includes two versions of the application to demonstrate security principles:
@@ -24,7 +31,6 @@ This project demonstrates a web-based information system for a telecommunication
 
 ---
 
-## Prerequisites & Installation
 
 ## Prerequisites & Installation
 
