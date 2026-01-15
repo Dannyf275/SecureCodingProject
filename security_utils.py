@@ -42,6 +42,11 @@ def validate_password(password):
     if POLICY['require_special_chars'] and not any(char in specials for char in password):
         return False, "Password must contain a special character."
 
+    # Check against dictionary blocklist (Case-insensitive)
+    for forbidden_word in POLICY.get('dictionary_blocklist', []):
+        if forbidden_word.lower() in password.lower():
+            return False, f"Password cannot contain commonly used words (e.g., '{forbidden_word}')."
+
     return True, "Valid"
 
 def hash_password(password, salt=None):

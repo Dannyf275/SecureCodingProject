@@ -137,6 +137,12 @@ def login():
             conn.close()
 
         if user:
+            # Check if user is locked out
+            if user['login_attempts'] >= 3:
+                 flash('Account locked due to too many failed attempts. Contact support.', 'error')
+                 conn.close()
+                 return render_template('login.html')
+
             # Retrieve the Salt stored in the database for this user
             # Note: Since SQLi is blocked, this is guaranteed to be the REAL salt.
             # Calculate the hash of the input password using the retrieved salt
@@ -145,11 +151,18 @@ def login():
             # Compare the calculated hash with the stored hash
             # This relies on standard string comparison (secure enough for this context)
             if check_hash == user['password_hash']:
+                # Reset failed attempts counter on successful login
+                cursor.execute("UPDATE users SET login_attempts = 0 WHERE id = %s", (user['id'],))
+                conn.commit()
+                
                 # Login Success: Set session variables
                 session['user_id'] = user['id']
                 session['username'] = user['username']
                 return redirect(url_for('dashboard'))
             else:
+                # Increment failed attempts counter
+                cursor.execute("UPDATE users SET login_attempts = login_attempts + 1 WHERE id = %s", (user['id'],))
+                conn.commit()
                 flash('Invalid credentials', 'error')  # Generic error message (Good practice)
         else:
             flash('Invalid credentials', 'error')  # User not found
